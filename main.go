@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/restartfu/decryptmypack/app"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/restartfu/decryptmypack/app"
 )
 
 func main() {

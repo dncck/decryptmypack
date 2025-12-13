@@ -2,11 +2,12 @@ package minecraft
 
 import (
 	"encoding/json"
-	"github.com/sandertv/gophertunnel/minecraft/auth"
-	"golang.org/x/oauth2"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/sandertv/gophertunnel/minecraft/auth"
+	"golang.org/x/oauth2"
 )
 
 var src oauth2.TokenSource

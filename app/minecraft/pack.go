@@ -6,10 +6,11 @@ import (
 	"crypto/aes"
 	"encoding/json"
 	"fmt"
-	"github.com/sandertv/gophertunnel/minecraft/resource"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/sandertv/gophertunnel/minecraft/resource"
 )
 
 func EncodePack(pack *resource.Pack) ([]byte, error) {
