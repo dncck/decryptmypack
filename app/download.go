@@ -3,7 +3,6 @@ package app
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/restartfu/decryptmypack/app/minecraft"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/restartfu/decryptmypack/app/minecraft"
 )
 
 var (

@@ -3,8 +3,9 @@ package minecraft
 import (
 	"context"
 	"fmt"
-	"github.com/sandertv/gophertunnel/minecraft"
 	"net"
+
+	"github.com/sandertv/gophertunnel/minecraft"
 )
 
 // AnonymousRakNet ...

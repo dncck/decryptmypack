@@ -3,10 +3,11 @@ package minecraft
 import (
 	"bufio"
 	"fmt"
-	"github.com/txthinking/socks5"
 	"math/rand"
 	"os"
 	"strings"
+
+	"github.com/txthinking/socks5"
 )
 
 // proxyInfo ...

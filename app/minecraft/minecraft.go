@@ -1,13 +1,15 @@
 package minecraft
 
 import (
+	"log/slog"
+	"math/rand"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
-	"math/rand"
-	"time"
 )
 
 var proxies []proxyInfo
@@ -19,7 +21,9 @@ func init() {
 func Connect(target string) (*minecraft.Conn, error) {
 	if len(proxies) > 0 {
 		// Override the default RakNet network with our anonymous RakNet network.
-		minecraft.RegisterNetwork("raknet", NewAnonymousRakNet(proxies))
+		minecraft.RegisterNetwork("raknet", func(*slog.Logger) minecraft.Network {
+			return NewAnonymousRakNet(proxies)
+		})
 	}
 
 	serverConn, err := minecraft.Dialer{

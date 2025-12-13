@@ -1,10 +1,11 @@
 package app
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/restartfu/decryptmypack/app/template"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/restartfu/decryptmypack/app/template"
 )
 
 var (

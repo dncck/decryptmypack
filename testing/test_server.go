@@ -1,26 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
+
 	"github.com/df-mc/dragonfly/server"
-	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/chat"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	log := logrus.New()
-	log.Formatter = &logrus.TextFormatter{ForceColors: true}
-	log.Level = logrus.InfoLevel
-
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	chat.Global.Subscribe(chat.StdoutSubscriber{})
 
 	cf := server.DefaultConfig()
 	cf.Network.Address = ":19169"
 
-	conf, err := cf.Config(log)
+	conf, err := cf.Config(slog.Default())
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
 	srv := conf.New()
@@ -28,8 +24,7 @@ func main() {
 
 	srv.Listen()
 
-	for srv.Accept(func(p *player.Player) {
-		fmt.Println(p.Addr().String())
-	}) {
+	for p := range srv.Accept() {
+		_ = p
 	}
 }
