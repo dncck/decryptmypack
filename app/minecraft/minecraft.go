@@ -1,13 +1,14 @@
 package minecraft
 
 import (
+	"log/slog"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
-	"math/rand"
-	"time"
 )
 
 var proxies []proxyInfo
@@ -19,7 +20,10 @@ func init() {
 func Connect(target string) (*minecraft.Conn, error) {
 	if len(proxies) > 0 {
 		// Override the default RakNet network with our anonymous RakNet network.
-		minecraft.RegisterNetwork("raknet", NewAnonymousRakNet(proxies))
+		proxyList := proxies
+		minecraft.RegisterNetwork("raknet", func(l *slog.Logger) minecraft.Network {
+			return NewAnonymousRakNet(proxyList)
+		})
 	}
 
 	serverConn, err := minecraft.Dialer{
@@ -34,7 +38,7 @@ func Connect(target string) (*minecraft.Conn, error) {
 			SkinResourcePatch:                "ewogICAiZ2VvbWV0cnkiIDogewogICAgICAiZGVmYXVsdCIgOiAiZ2VvbWV0cnkuaHVtYW5vaWQuY3VzdG9tIgogICB9Cn0K",
 			DeviceOS:                         protocol.DeviceAndroid,
 			SelfSignedID:                     uuid.New().String(),
-			DeviceID:                         uuid.New().String(),
+			DeviceID:                         login.DeviceID(uuid.New().String()),
 			LanguageCode:                     "en_US",
 			DeviceModel:                      "NITRO N50-620 ACER",
 			SkinColour:                       "#0",
@@ -52,14 +56,4 @@ func Connect(target string) (*minecraft.Conn, error) {
 	}
 
 	return serverConn, serverConn.DoSpawn()
-}
-
-var chars = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-func generateString() string {
-	b := make([]rune, rand.Intn(5-4)+5)
-	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
-	}
-	return string(b)
 }
