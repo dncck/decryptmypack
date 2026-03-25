@@ -27,7 +27,7 @@ func Connect(target string) (*minecraft.Conn, error) {
 	}
 
 	serverConn, err := minecraft.Dialer{
-		TokenSource:                src,
+		TokenSource:                tokenSource(),
 		DisconnectOnInvalidPackets: false,
 		DisconnectOnUnknownPackets: false,
 

@@ -1,40 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"github.com/restartfu/decryptmypack/app"
 	"log"
-	"net/http"
 	"os"
 	"strings"
+
+	"github.com/restartfu/decryptmypack/app"
 )
 
 func main() {
-	var dev bool
-
 	args := os.Args
-	if len(args) >= 2 && strings.EqualFold(args[1], "dev") {
-		dev = true
+	if len(args) >= 2 && !strings.EqualFold(args[1], "dev") {
+		log.Fatalf("unsupported argument %q", args[1])
 	}
 
-	addr := ":8080"
-	if !dev {
-		addr = ":443"
+	installWorkerProxy()
 
-		go func() {
-			err := http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Println("Redirecting to https")
-				http.Redirect(w, r, "https://decryptmypack.com", http.StatusMovedPermanently)
-			}))
-			if err != nil {
-				panic(err)
-			}
-		}()
+	addr := ":8080"
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		if strings.HasPrefix(port, ":") {
+			addr = port
+		} else {
+			addr = ":" + port
+		}
 	}
 	log.Printf("Server listening on %s\n", addr)
 
 	a := app.App{}
-	err := a.ListenAndServe(addr, dev)
+	err := a.ListenAndServe(addr)
 	if err != nil {
 		panic(err)
 	}

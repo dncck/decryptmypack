@@ -2,56 +2,30 @@ package app
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
-	"github.com/restartfu/decryptmypack/app/minecraft"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/restartfu/decryptmypack/app/minecraft"
 )
 
 var (
-	commonServers = []string{
-		"zeqa.net",
-		"play.galaxite.net",
-		"play.cubecraft.net",
-		"hesu.org",
-	}
-	specialServers = []string{
-		"play.rustmc.online",
-		"geo.hivebedrock.network",
-	}
-	downloading = sync.Map{}
-
-	concurrentMax = 5
-	concurrent    int
+	downloading   = sync.Map{}
+	generationSem = make(chan struct{}, 1)
 )
 
-func init() {
-	for _, server := range commonServers {
-		go periodicallyDownloadPacks(server)
-	}
-}
-
-func periodicallyDownloadPacks(server string) {
-	for {
-		time.Sleep(time.Minute)
-		filePath := "packs/" + server + "/19132/" + server + ".zip"
-
-		if err := os.MkdirAll("packs/"+server+"/19132", 0777); err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		if err := downloadPacksFromServer(filePath, server+":19132"); err != nil {
-			// Log the error (could use a proper logging framework)
-			continue
-		}
-		time.Sleep(time.Duration(60/len(commonServers)) * time.Minute)
-	}
+type packRequest struct {
+	Target    string
+	Port      string
+	Address   string
+	ObjectKey string
 }
 
 func downloadPacksFromServer(filePath string, server string) error {
@@ -100,95 +74,142 @@ func downloadPacksFromServer(filePath string, server string) error {
 }
 
 func (a *App) download(w http.ResponseWriter, r *http.Request) {
-	if concurrent >= concurrentMax {
-		http.Error(w, "too many concurrent downloads", http.StatusServiceUnavailable)
+	if requiresDownloadAPISecret(r) {
+		writeJSON(w, http.StatusUnauthorized, packStatusResponse{
+			Status: "error",
+			Error:  "unauthorized",
+		})
 		return
 	}
 
-	concurrent++
-	defer func() {
-		concurrent--
-	}()
-
-	target := r.FormValue("target")
-	if target == "" {
-		http.Error(w, "missing target", http.StatusBadRequest)
+	req, err := parsePackRequest(r.FormValue("target"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, packStatusResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
 		return
 	}
 
-	var port = "19132"
+	if _, inFlight := downloading.Load(req.ObjectKey); !inFlight {
+		if !startPackRefresh(req) {
+			writeJSON(w, http.StatusServiceUnavailable, packStatusResponse{
+				Status: "error",
+				Error:  "too many concurrent downloads",
+			})
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusAccepted, packStatusResponse{
+		Status:         "processing",
+		URL:            packPublicURL(req.ObjectKey),
+		Key:            req.ObjectKey,
+		PollIntervalMS: 3000,
+	})
+}
+
+func parsePackRequest(target string) (packRequest, error) {
+	if strings.TrimSpace(target) == "" {
+		return packRequest{}, errors.New("missing target")
+	}
+
+	port := "19132"
 	split := strings.Split(target, ":")
-	target = split[0]
+	target = strings.TrimSpace(split[0])
 
 	if strings.Contains(strings.ToLower(target), "hivebedrock.network") {
 		target = "geo.hivebedrock.network"
 	}
 
-	addrs, _ := net.LookupHost(target)
-	if len(addrs) == 0 {
-		http.Error(w, "invalid target", http.StatusBadRequest)
-		return
+	addrs, err := net.LookupHost(target)
+	if err != nil || len(addrs) == 0 {
+		return packRequest{}, errors.New("invalid target")
 	}
 
 	if len(split) > 1 {
-		_, err := strconv.Atoi(split[1])
-		if err != nil {
-			http.Error(w, "invalid port", http.StatusBadRequest)
-			return
+		if _, err := strconv.Atoi(split[1]); err != nil {
+			return packRequest{}, errors.New("invalid port")
 		}
 		port = split[1]
 	}
 
-	if c, ok := downloading.Load(target); ok {
-		<-c.(chan struct{})
+	return packRequest{
+		Target:    target,
+		Port:      port,
+		Address:   target + ":" + port,
+		ObjectKey: packObjectKey(target, port),
+	}, nil
+}
+
+func startPackRefresh(req packRequest) bool {
+	done := make(chan struct{})
+	if _, loaded := downloading.LoadOrStore(req.ObjectKey, done); loaded {
+		return true
 	}
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
+	select {
+	case generationSem <- struct{}{}:
+		go func() {
+			defer func() {
+				<-generationSem
+				close(done)
+				downloading.Delete(req.ObjectKey)
+			}()
 
-	for _, server := range specialServers {
-		if strings.EqualFold(target, server) {
-			serveFile(w, r, "packs/"+server+"/19132/"+server+".zip")
-			return
+			if err := refreshPack(req); err != nil {
+				fmt.Println(req.Target, err)
+				return
+			}
+		}()
+		return true
+	default:
+		downloading.Delete(req.ObjectKey)
+		return false
+	}
+}
+
+func refreshPack(req packRequest) error {
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		if attempt > 1 {
+			time.Sleep(time.Duration(attempt*2) * time.Second)
 		}
+		if err := refreshPackOnce(req); err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
 	}
-
-	filePath := "packs/" + target + "/" + port + "/" + target + ".zip"
-	if fileExistsAndFresh(filePath, time.Minute*60) {
-		serveFile(w, r, filePath)
-		return
-	}
-
-	c := make(chan struct{})
-	downloading.Store(target, c)
-	defer func() {
-		close(c)
-		downloading.Delete(target)
-	}()
-
-	if err := os.MkdirAll("packs/"+target+"/"+port, 0777); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := downloadPacksFromServer(filePath, target+":"+port); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	serveFile(w, r, filePath)
+	return lastErr
 }
 
-func fileExistsAndFresh(filePath string, maxAge time.Duration) bool {
-	if fi, err := os.Stat(filePath); err == nil {
-		return time.Since(fi.ModTime()) <= maxAge
+func refreshPackOnce(req packRequest) error {
+	tempDir, err := os.MkdirTemp("", "decryptmypack-*")
+	if err != nil {
+		return err
 	}
-	return false
+	defer os.RemoveAll(tempDir)
+
+	filePath := filepath.Join(tempDir, filepath.Base(req.ObjectKey))
+	if err := downloadPacksFromServer(filePath, req.Address); err != nil {
+		return err
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return errors.New("server returned no packs")
+		}
+		return err
+	}
+	defer file.Close()
+
+	return uploadPackToR2(req.ObjectKey, file)
 }
 
-func serveFile(w http.ResponseWriter, r *http.Request, filePath string) {
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+strings.Split(filePath, "/")[1]+".zip\"")
-	http.ServeFile(w, r, filePath)
+func (a *App) health(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+	})
 }

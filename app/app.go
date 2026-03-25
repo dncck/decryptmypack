@@ -1,53 +1,34 @@
 package app
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/restartfu/decryptmypack/app/template"
 	"net/http"
+	"os"
 	"strings"
-)
-
-var (
-	router = mux.NewRouter()
 )
 
 type App struct {
 }
 
-func (a *App) ListenAndServe(addr string, dev bool) error {
-	serverAddr := "https://decryptmypack.com:443"
-	if dev {
-		serverAddr = "http://localhost:8080"
-	}
-
-	router.HandleFunc("/download", a.download).Queries("target", "{target}")
-
-	router.HandleFunc("/", serveFileFunc("./frontend/static/home.html"))
-	router.HandleFunc("/style.css", serveFileFunc("./frontend/static/style.css"))
-	router.HandleFunc("/src/script.js", template.NewFS("./frontend/src/script.js", strings.NewReplacer(
-		"$SERVER_ADDR", serverAddr,
-	)))
-	router.HandleFunc("/assets/{path}", serveDirFunc("./frontend"))
-
-	router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/", http.StatusFound)
+func (a *App) ListenAndServe(addr string) error {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/download", a.download)
+	mux.HandleFunc("/health", a.health)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
 	})
-
-	if dev {
-		return http.ListenAndServe(addr, router)
-	}
-	return http.ListenAndServeTLS(addr, "./certificate.crt", "./private.key", router)
+	return http.ListenAndServe(addr, mux)
 }
 
-// serverDirFunc serves files from the given directory.
-func serveDirFunc(dir string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, dir+r.URL.Path)
+func requiresDownloadAPISecret(r *http.Request) bool {
+	secret := strings.TrimSpace(os.Getenv("DOWNLOAD_API_SHARED_SECRET"))
+	if secret == "" {
+		return false
 	}
-}
 
-func serveFileFunc(name string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, name)
+	host := strings.ToLower(r.Host)
+	if strings.HasPrefix(host, "localhost:") || host == "localhost" || strings.HasPrefix(host, "127.0.0.1:") || host == "127.0.0.1" {
+		return false
 	}
+
+	return r.Header.Get("X-Download-Api-Secret") != secret
 }

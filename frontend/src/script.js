@@ -1,5 +1,5 @@
 function updateInputValue(input) {
-    let inputElement = document.getElementById('input');
+    let inputElement = document.getElementById("input");
     inputElement.value = input;
 }
 
@@ -8,98 +8,116 @@ function downloadSpecifiedServer(addr) {
     decrypt();
 }
 
-function decrypt() {
-    let input = document.getElementById('input').value;
-    let apiUrl = `$SERVER_ADDR/download?target=` + input;
+function apiBaseUrl() {
+    let configured = window.DECRYPTMYPACK_CONFIG?.apiBaseUrl || "";
+    return configured.replace(/\/+$/, "");
+}
 
-    // Create a new XMLHttpRequest object
-    let xhr = new XMLHttpRequest();
+async function decrypt() {
+    let inputElement = document.getElementById("input");
+    let input = inputElement.value.trim();
+    if (!input) {
+        input = inputElement.placeholder.trim();
+        inputElement.value = input;
+    }
+    let apiUrl = apiBaseUrl() + `/download?target=` + encodeURIComponent(input);
 
-    // Open a GET request to the API endpoint
-    xhr.open('GET', apiUrl, true);
-
-    // Set the responseType to 'blob' to handle binary data
-    xhr.responseType = 'blob';
-
-    // Define a callback function to handle the response
-    xhr.onload = function() {
-        hideDownload();
-        if (xhr.status === 200) {
-            // Get the Content-Disposition header
-            let contentDisposition = xhr.getResponseHeader('Content-Disposition');
-            if (contentDisposition) {
-                // Extract the filename from the header
-                let filename = contentDisposition.split('filename=')[1];
-                filename = filename.slice(1, -1); // Remove surrounding quotes
-                // Create a blob URL from the response
-                let blob = new Blob([xhr.response], { type: 'application/octet-stream' });
-                let url = window.URL.createObjectURL(blob);
-
-                // Create a temporary link element
-                let a = document.createElement('a');
-                a.href = url;
-                a.download = filename; // Use the extracted filename
-
-                // Programmatically trigger a click on the link to start the download
-                document.body.appendChild(a);
-                a.click();
-
-                // Clean up the URL object
-                window.URL.revokeObjectURL(url);
-            } else {
-                console.error('Content-Disposition header not found');
-            }
-        } else {
-            // Retrieve error message from response body
-            let reader = new FileReader();
-            reader.onload = function() {
-                let errorMessage = reader.result;
-                showError('Error downloading file: ' + errorMessage);
-            };
-            reader.readAsText(xhr.response);
-        }
-    };
-
-    // Define a callback function to handle errors
-    xhr.onerror = function() {
-        // Retrieve error message from response body
-        let reader = new FileReader();
-        reader.onload = function() {
-            let errorMessage = reader.result;
-            showError('Error downloading file: ' + errorMessage);
-        };
-        reader.readAsText(xhr.response);
-    };
-
-    // Send the request
-    xhr.send();
     showDownload();
     hideError();
+
+    try {
+        let response = await fetch(apiUrl);
+        let payload = await readAPIResponse(response);
+
+        if (!response.ok) {
+            throw new Error(payload.error || "Download request failed");
+        }
+
+        if (payload.status === "ready") {
+            triggerDownload(payload.url);
+            hideDownload();
+            return;
+        }
+
+        if (payload.status !== "processing" || !payload.url) {
+            throw new Error("Unexpected download response");
+        }
+
+        payload = await pollForPack(apiUrl, payload.poll_interval_ms || 3000);
+        triggerDownload(payload.url);
+    } catch (error) {
+        showError("Error downloading file: " + error.message);
+    } finally {
+        hideDownload();
+    }
+}
+
+async function readAPIResponse(response) {
+    let contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+        return await response.json();
+    }
+
+    let text = (await response.text()).trim();
+    return {
+        error: text || `Request failed with status ${response.status}`,
+    };
+}
+
+async function pollForPack(apiUrl, intervalMs) {
+    let deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+        let response = await fetch(apiUrl);
+        let payload = await readAPIResponse(response);
+        if (!response.ok) {
+            throw new Error(
+                payload.error ||
+                    `Request failed with status ${response.status}`,
+            );
+        }
+        if (payload.status === "ready" && payload.url) {
+            return payload;
+        }
+        if (payload.status !== "processing") {
+            throw new Error(payload.error || "Unexpected download response");
+        }
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    throw new Error("Timed out waiting for the pack to upload");
+}
+
+function triggerDownload(url) {
+    let a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 }
 
 // Function to show the error message with fade-in effect
 function showError(err) {
-    const errorElement = document.getElementById('error');
+    const errorElement = document.getElementById("error");
     errorElement.textContent = err;
-    errorElement.style.opacity = '1'; // Set opacity to 1 to show the element
+    errorElement.style.opacity = "1"; // Set opacity to 1 to show the element
 
     setTimeout(hideError, 15000); // Hide the error message after 3 seconds
 }
 
 // Function to hide the error message with fade-out effect
 function hideError() {
-    const errorElement = document.getElementById('error');
-    errorElement.style.opacity = '0'; // Set opacity to 0 to hide the element
+    const errorElement = document.getElementById("error");
+    errorElement.style.opacity = "0"; // Set opacity to 0 to hide the element
 }
 
 function showDownload() {
-    const loadingElement = document.getElementById('loading');
-    loadingElement.style.opacity = '1';
+    const loadingElement = document.getElementById("loading");
+    loadingElement.style.opacity = "1";
 }
 
 function hideDownload() {
-    const loadingElement = document.getElementById('loading');
-    loadingElement.style.opacity = '0';
+    const loadingElement = document.getElementById("loading");
+    loadingElement.style.opacity = "0";
 }
 
 function toDiscord() {
@@ -107,5 +125,5 @@ function toDiscord() {
 }
 
 function toGithub() {
-    window.location.href = "https://github.com/RestartFU/decryptmypack"
+    window.location.href = "https://github.com/RestartFU/decryptmypack";
 }

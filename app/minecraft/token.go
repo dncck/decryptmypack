@@ -2,22 +2,30 @@ package minecraft
 
 import (
 	"encoding/json"
-	"github.com/sandertv/gophertunnel/minecraft/auth"
-	"golang.org/x/oauth2"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+
+	"github.com/sandertv/gophertunnel/minecraft/auth"
+	"golang.org/x/oauth2"
 )
 
-var src oauth2.TokenSource
-
-func init() {
-	src = tokenSource()
-}
+var (
+	src     oauth2.TokenSource
+	srcOnce sync.Once
+)
 
 // tokenSource returns a token source for using with a gophertunnel client. It either reads it from the
 // token.tok file if cached or requests logging in with a device code.
 func tokenSource() oauth2.TokenSource {
+	srcOnce.Do(func() {
+		src = newTokenSource()
+	})
+	return src
+}
+
+func newTokenSource() oauth2.TokenSource {
 	check := func(err error) {
 		if err != nil {
 			panic(err)
