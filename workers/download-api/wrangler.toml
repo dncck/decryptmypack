@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-03-25"
 
 [vars]
-DOWNLOAD_API_ORIGIN = "https://your-tunnel-hostname.example.com"
+DOWNLOAD_API_ORIGIN = "https://api-origin.restartfu.com"
 PACKS_PUBLIC_BASE_URL = "https://decryptmypack-packs.restartfu.workers.dev"
 
 [[r2_buckets]]
