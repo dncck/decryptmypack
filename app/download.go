@@ -18,7 +18,7 @@ import (
 
 var (
 	downloading   = sync.Map{}
-	generationSem = make(chan struct{}, 1)
+	generationSem = make(chan struct{}, 5)
 )
 
 type packRequest struct {
