@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	downloading   = sync.Map{}
-	generationSem = make(chan struct{}, 5)
+	downloading = sync.Map{}
 )
 
 type packRequest struct {
@@ -143,9 +142,7 @@ func startPackRefresh(req packRequest) bool {
 	}
 
 	go func() {
-		generationSem <- struct{}{}
 		defer func() {
-			<-generationSem
 			close(done)
 			downloading.Delete(req.ObjectKey)
 		}()
