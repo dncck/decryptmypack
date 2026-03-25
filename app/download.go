@@ -138,19 +138,22 @@ func parsePackRequest(target string) (packRequest, error) {
 func startPackRefresh(req packRequest) bool {
 	done := make(chan struct{})
 	if _, loaded := downloading.LoadOrStore(req.ObjectKey, done); loaded {
+		fmt.Printf("download already in progress for %s\n", req.ObjectKey)
 		return true
 	}
 
 	go func() {
+		fmt.Printf("starting download for %s from %s\n", req.ObjectKey, req.Address)
 		defer func() {
 			close(done)
 			downloading.Delete(req.ObjectKey)
 		}()
 
 		if err := refreshPack(req); err != nil {
-			fmt.Println(req.Target, err)
+			fmt.Printf("download failed for %s: %v\n", req.ObjectKey, err)
 			return
 		}
+		fmt.Printf("download complete for %s\n", req.ObjectKey)
 	}()
 	return true
 }
@@ -158,10 +161,12 @@ func startPackRefresh(req packRequest) bool {
 func refreshPack(req packRequest) error {
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
+		fmt.Printf("download attempt %d for %s\n", attempt, req.ObjectKey)
 		if attempt > 1 {
 			time.Sleep(time.Duration(attempt*2) * time.Second)
 		}
 		if err := refreshPackOnce(req); err != nil {
+			fmt.Printf("download attempt %d failed for %s: %v\n", attempt, req.ObjectKey, err)
 			lastErr = err
 			continue
 		}
