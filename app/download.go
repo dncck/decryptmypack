@@ -92,13 +92,7 @@ func (a *App) download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, inFlight := downloading.Load(req.ObjectKey); !inFlight {
-		if !startPackRefresh(req) {
-			writeJSON(w, http.StatusServiceUnavailable, packStatusResponse{
-				Status: "error",
-				Error:  "too many concurrent downloads",
-			})
-			return
-		}
+		startPackRefresh(req)
 	}
 
 	writeJSON(w, http.StatusAccepted, packStatusResponse{
@@ -148,25 +142,20 @@ func startPackRefresh(req packRequest) bool {
 		return true
 	}
 
-	select {
-	case generationSem <- struct{}{}:
-		go func() {
-			defer func() {
-				<-generationSem
-				close(done)
-				downloading.Delete(req.ObjectKey)
-			}()
-
-			if err := refreshPack(req); err != nil {
-				fmt.Println(req.Target, err)
-				return
-			}
+	go func() {
+		generationSem <- struct{}{}
+		defer func() {
+			<-generationSem
+			close(done)
+			downloading.Delete(req.ObjectKey)
 		}()
-		return true
-	default:
-		downloading.Delete(req.ObjectKey)
-		return false
-	}
+
+		if err := refreshPack(req); err != nil {
+			fmt.Println(req.Target, err)
+			return
+		}
+	}()
+	return true
 }
 
 func refreshPack(req packRequest) error {
