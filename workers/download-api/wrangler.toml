@@ -1,0 +1,15 @@
+name = "decryptmypack-download-api"
+main = "src/index.js"
+compatibility_date = "2026-03-25"
+
+[vars]
+DOWNLOAD_API_ORIGIN = "https://your-tunnel-hostname.example.com"
+PACKS_PUBLIC_BASE_URL = "https://decryptmypack-packs.restartfu.workers.dev"
+
+[[r2_buckets]]
+binding = "PACKS"
+bucket_name = "decryptmypack"
+
+[[kv_namespaces]]
+binding = "FAILED_PACKS"
+id = "6af9959e81f048d98ac92f77771febbf"

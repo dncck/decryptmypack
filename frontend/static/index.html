@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+    <title>decryptmypack.com</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta property="og:title" content="decryptmypack.com">
+    <meta property="og:description" content="Decrypt any Minecraft: Bedrock resource pack.">
+    <meta property="og:type" content="website">
+</head>
+<body>
+<div class="container">
+    <div class="social"">
+        <button class="github" onclick="toGithub()">
+            <img class="github" src="../assets/github_logo.png" alt="github_logo" href="https://github.com/RestartFU/decryptmypack">
+        </button>
+
+        <button class="discord" onclick="toDiscord()">
+            <img class="discord" src="../assets/discord_logo.png" alt="discord_logo">
+        </button>
+    </div>
+    <h1 class="header">decrypt my pack.</h1>
+    <p class="description">Enter the IP of the server you want to download the pack from.<br>Our backend will decrypt it for you.</p>
+    <div id="loading" style="display: block;">Downloading...</div>
+    <div id="error" style="display: block;"></div>
+    <div class="functionality">
+        <label>
+            <input id="input" type="text" placeholder="zeqa.net:19132">
+        </label>
+        <button class="btn" onclick="decrypt()">decrypt pack</button>
+    </div>
+    <div class="server-buttons">
+        <button class="server-btn" onclick="downloadSpecifiedServer('zeqa.net')">
+            <img src="../assets/zeqa_icon.png" alt="zeqa.net">
+        </button>
+        <button class="server-btn" onclick="downloadSpecifiedServer('play.galaxite.net')">
+            <img src="../assets/galaxite_icon.png" alt="play.galaxite.net">
+        </button>
+        <button class="server-btn" onclick="downloadSpecifiedServer('play.cubecraft.net')">
+            <img src="../assets/cubecraft_icon.png" alt="play.cubecraft.net">
+        </button>
+        <button class="server-btn" onclick="downloadSpecifiedServer('play.rustmc.online')">
+            <img src="../assets/rustmc_icon.png" alt="play.rustmc.online">
+        </button>
+
+        <!-- Do not remove this... -->
+        <button class="server-btn" onclick="downloadSpecifiedServer('play.rustmc.online')">
+            <img alt="filler">
+        </button>
+
+    </div>
+    <div class="server-buttons">
+        <button class="server-btn" onclick="downloadSpecifiedServer('geo.hivebedrock.network')">
+            <img src="../assets/thehive_icon.png" alt="geo.hivebedrock.network">
+        </button>
+    </div>
+</div>
+<div class="footer">
+
+</div>
+</body>
+<script src="config.js"></script>
+<script src="../src/script.js"></script>
+</html>
