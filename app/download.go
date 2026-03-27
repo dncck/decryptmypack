@@ -19,13 +19,23 @@ import (
 var (
 	downloading   = sync.Map{}
 	generationSem = make(chan struct{}, 5)
+	jobStates     = sync.Map{}
 )
+
+const failedPackCooldown = 2 * time.Minute
 
 type packRequest struct {
 	Target    string
 	Port      string
 	Address   string
 	ObjectKey string
+	JobKey    string
+}
+
+type packJobState struct {
+	Running     bool
+	Error       string
+	FailedUntil time.Time
 }
 
 func downloadPacksFromServer(filePath string, server string) error {
@@ -91,6 +101,25 @@ func (a *App) download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if state, ok := currentJobState(req.JobKey); ok {
+		if state.Running {
+			writeJSON(w, http.StatusAccepted, packStatusResponse{
+				Status:         "processing",
+				URL:            packPublicURL(req.ObjectKey),
+				Key:            req.ObjectKey,
+				PollIntervalMS: 3000,
+			})
+			return
+		}
+		if state.Error != "" {
+			writeJSON(w, http.StatusTooManyRequests, packStatusResponse{
+				Status: "error",
+				Error:  state.Error,
+			})
+			return
+		}
+	}
+
 	if _, inFlight := downloading.Load(req.ObjectKey); !inFlight {
 		startPackRefresh(req)
 	}
@@ -120,6 +149,7 @@ func parsePackRequest(target string) (packRequest, error) {
 	if err != nil || len(addrs) == 0 {
 		return packRequest{}, errors.New("invalid target")
 	}
+	resolvedIP := addrs[0]
 
 	if len(split) > 1 {
 		if _, err := strconv.Atoi(split[1]); err != nil {
@@ -133,15 +163,17 @@ func parsePackRequest(target string) (packRequest, error) {
 		Port:      port,
 		Address:   target + ":" + port,
 		ObjectKey: packObjectKey(target, port),
+		JobKey:    packJobKey(resolvedIP, port),
 	}, nil
 }
 
 func startPackRefresh(req packRequest) bool {
 	done := make(chan struct{})
-	if _, loaded := downloading.LoadOrStore(req.ObjectKey, done); loaded {
-		fmt.Printf("download already in progress for %s\n", req.ObjectKey)
+	if _, loaded := downloading.LoadOrStore(req.JobKey, done); loaded {
+		fmt.Printf("download already in progress for %s (%s)\n", req.JobKey, req.ObjectKey)
 		return true
 	}
+	jobStates.Store(req.JobKey, packJobState{Running: true})
 
 	go func() {
 		fmt.Printf("starting download for %s from %s\n", req.ObjectKey, req.Address)
@@ -149,13 +181,18 @@ func startPackRefresh(req packRequest) bool {
 		defer func() {
 			<-generationSem
 			close(done)
-			downloading.Delete(req.ObjectKey)
+			downloading.Delete(req.JobKey)
 		}()
 
 		if err := refreshPack(req); err != nil {
+			jobStates.Store(req.JobKey, packJobState{
+				Error:       err.Error(),
+				FailedUntil: time.Now().Add(failedPackCooldown),
+			})
 			fmt.Printf("download failed for %s: %v\n", req.ObjectKey, err)
 			return
 		}
+		jobStates.Delete(req.ObjectKey)
 		fmt.Printf("download complete for %s\n", req.ObjectKey)
 	}()
 	return true
@@ -206,4 +243,27 @@ func (a *App) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})
+}
+
+func currentJobState(jobKey string) (packJobState, bool) {
+	stateValue, ok := jobStates.Load(jobKey)
+	if !ok {
+		return packJobState{}, false
+	}
+
+	state := stateValue.(packJobState)
+	if state.Running {
+		return state, true
+	}
+	if state.Error != "" && time.Now().Before(state.FailedUntil) {
+		return state, true
+	}
+
+	jobStates.Delete(jobKey)
+	return packJobState{}, false
+}
+
+func packJobKey(ip, port string) string {
+	ip = strings.TrimSpace(strings.ToLower(ip))
+	return "ip/" + ip + "/" + port
 }
