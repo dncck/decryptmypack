@@ -141,7 +141,7 @@ async function setFailedPackCooldown(env, objectKey, error) {
     }
 
     await env.FAILED_PACKS.put(objectKey, JSON.stringify({ error }), {
-        expirationTtl: 30 * 60,
+        expirationTtl: 2 * 60,
     });
 }
 
