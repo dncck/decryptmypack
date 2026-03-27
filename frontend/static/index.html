@@ -1,61 +1,155 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="style.css">
-    <title>decryptmypack.com</title>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="style.css" />
+        <title>decryptmypack.com</title>
+        <script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3339441155480818"
+            crossorigin="anonymous"
+        ></script>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta property="og:title" content="decryptmypack.com">
-    <meta property="og:description" content="Decrypt any Minecraft: Bedrock resource pack.">
-    <meta property="og:type" content="website">
-</head>
-<body>
-<div class="container">
-    <div class="social"">
-        <button class="github" onclick="toGithub()">
-            <img class="github" src="../assets/github_logo.png" alt="github_logo" href="https://github.com/RestartFU/decryptmypack">
-        </button>
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=no"
+        />
+        <meta property="og:title" content="decryptmypack.com" />
+        <meta
+            property="og:description"
+            content="Decrypt any Minecraft: Bedrock resource pack."
+        />
+        <meta property="og:type" content="website" />
+    </head>
+    <body>
+        <div class="container">
+            <div class="social">
+                <button class="github" onclick="toGithub()">
+                    <img
+                        class="github"
+                        src="../assets/github_logo.png"
+                        alt="github_logo"
+                        href="https://github.com/RestartFU/decryptmypack"
+                    />
+                </button>
 
-        <button class="discord" onclick="toDiscord()">
-            <img class="discord" src="../assets/discord_logo.png" alt="discord_logo">
-        </button>
-    </div>
-    <h1 class="header">decrypt my pack.</h1>
-    <p class="description">Enter the IP of the server you want to download the pack from.<br>Our backend will decrypt it for you.</p>
-    <div id="loading" style="display: block;">Downloading...</div>
-    <div id="error" style="display: block;"></div>
-    <div class="functionality">
-        <label>
-            <input id="input" type="text" placeholder="zeqa.net:19132">
-        </label>
-        <button class="btn" onclick="decrypt()">decrypt pack</button>
-    </div>
-    <div class="server-buttons">
-        <button class="server-btn" onclick="downloadSpecifiedServer('zeqa.net')">
-            <img src="../assets/zeqa_icon.png" alt="zeqa.net">
-        </button>
-        <button class="server-btn" onclick="downloadSpecifiedServer('play.galaxite.net')">
-            <img src="../assets/galaxite_icon.png" alt="play.galaxite.net">
-        </button>
-        <button class="server-btn" onclick="downloadSpecifiedServer('play.cubecraft.net')">
-            <img src="../assets/cubecraft_icon.png" alt="play.cubecraft.net">
-        </button>
-        <button class="server-btn" onclick="downloadSpecifiedServer('play.rustmc.online')">
-            <img alt="filler">
-        </button>
-
-    </div>
-    <div class="server-buttons">
-        <button class="server-btn" onclick="downloadSpecifiedServer('geo.hivebedrock.network')">
-            <img src="../assets/thehive_icon.png" alt="geo.hivebedrock.network">
-        </button>
-    </div>
-</div>
-<div class="footer">
-
-</div>
-</body>
-<script src="config.js"></script>
-<script src="../src/script.js"></script>
+                <button class="discord" onclick="toDiscord()">
+                    <img
+                        class="discord"
+                        src="../assets/discord_logo.png"
+                        alt="discord_logo"
+                    />
+                </button>
+            </div>
+            <div class="layout">
+                <section class="hero-panel">
+                    <div class="eyebrow">Minecraft Bedrock resource packs</div>
+                    <h1 class="header">decrypt my pack.</h1>
+                    <p class="description">
+                        Enter the IP of the server you want to download the pack
+                        from.<br />Our backend will decrypt it for you.
+                    </p>
+                    <div class="functionality">
+                        <label>
+                            <input
+                                id="input"
+                                type="text"
+                                placeholder="zeqa.net:19132"
+                            />
+                        </label>
+                        <button
+                            id="decrypt-btn"
+                            class="btn"
+                            onclick="decrypt()"
+                        >
+                            decrypt pack
+                        </button>
+                    </div>
+                    <div class="hint">
+                        Uncached packs can take a bit. Cached packs start
+                        immediately.
+                    </div>
+                </section>
+                <aside class="side-panel">
+                    <div id="status-card" class="status-card">
+                        <div class="status-row">
+                            <div id="status-dot" class="status-dot"></div>
+                            <div class="status-copy">
+                                <div id="status-title" class="status-title">
+                                    Ready
+                                </div>
+                                <div id="status-text" class="status-text">
+                                    Enter a server and start a download.
+                                </div>
+                            </div>
+                        </div>
+                        <div id="status-target" class="status-target"></div>
+                    </div>
+                    <div id="error"></div>
+                    <div class="server-list-label">Popular servers</div>
+                    <div class="server-grid">
+                        <button
+                            class="server-btn"
+                            onclick="downloadSpecifiedServer('zeqa.net')"
+                        >
+                            <img src="../assets/zeqa_icon.png" alt="zeqa.net" />
+                        </button>
+                        <button
+                            class="server-btn"
+                            onclick="
+                                downloadSpecifiedServer('play.galaxite.net')
+                            "
+                        >
+                            <img
+                                src="../assets/galaxite_icon.png"
+                                alt="play.galaxite.net"
+                            />
+                        </button>
+                        <button
+                            class="server-btn"
+                            onclick="
+                                downloadSpecifiedServer('play.cubecraft.net')
+                            "
+                        >
+                            <img
+                                src="../assets/cubecraft_icon.png"
+                                alt="play.cubecraft.net"
+                            />
+                        </button>
+                        <button
+                            class="server-btn"
+                            onclick="
+                                downloadSpecifiedServer(
+                                    'geo.hivebedrock.network',
+                                )
+                            "
+                        >
+                            <img
+                                src="../assets/thehive_icon.png"
+                                alt="geo.hivebedrock.network"
+                            />
+                        </button>
+                    </div>
+                </aside>
+                <aside class="ad-panel">
+                    <div class="ad-label">Advertisement</div>
+                    <div class="ad-slot">
+                        <ins
+                            class="adsbygoogle ad-unit"
+                            style="display: block"
+                            data-ad-client="ca-pub-3339441155480818"
+                            data-ad-slot="5599145990"
+                            data-ad-format="auto"
+                            data-full-width-responsive="true"
+                        ></ins>
+                        <script>
+                            (adsbygoogle = window.adsbygoogle || []).push({});
+                        </script>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </body>
+    <script src="config.js"></script>
+    <script src="../src/script.js"></script>
 </html>
